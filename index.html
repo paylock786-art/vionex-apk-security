@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vionex CRM — Official Download</title>
+<meta name="description" content="Official Vionex CRM Android APK download and security verification.">
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif}*{box-sizing:border-box}
+body{margin:0;background:#0b1220;color:#e8eefc;display:grid;min-height:100vh;place-items:center;padding:24px}
+main{max-width:720px;width:100%;background:#121d31;border:1px solid #263754;border-radius:24px;padding:clamp(24px,5vw,48px);box-shadow:0 20px 70px #0005}
+.badge{display:inline-block;background:#173d35;color:#8ff0c4;padding:7px 12px;border-radius:99px;font-size:13px}
+h1{font-size:clamp(32px,6vw,52px);margin:18px 0 8px}p{color:#b9c7df;line-height:1.65}
+button,.btn{display:inline-block;background:#4f8cff;color:white;text-decoration:none;border:0;border-radius:12px;padding:14px 20px;font-weight:700;margin:8px 8px 8px 0;cursor:pointer}
+.secondary{background:#263754}.box{background:#0b1425;padding:16px;border-radius:12px;margin:18px 0;overflow-wrap:anywhere}
+small{color:#91a4c5}footer{margin-top:28px;border-top:1px solid #263754;padding-top:18px;color:#91a4c5;font-size:13px}
+</style></head><body><main>
+<span class="badge">✓ Official Vionex download portal</span>
+<h1>Vionex CRM</h1><p>Download the official Android application. Always verify the release and install only from trusted sources.</p>
+<div class="box"><strong id="version">Loading latest release…</strong><p id="releaseNotes">Checking official release information.</p><a id="download" class="btn" href="https://github.com/paylock786-art/vionex-crm-releases/releases/latest" target="_blank" rel="noopener">Open official APK release</a><a class="btn secondary" href="https://github.com/paylock786-art/vionex-crm-releases/releases/latest" target="_blank" rel="noopener">Release details</a></div>
+<h2>Before installing</h2><ul><li>Download only from this portal or the official Releases page.</li><li>Android may ask permission to install apps from this source.</li><li>Play Protect may still show a warning; do not bypass a harmful-app block.</li><li>Check the SHA-256 and signature details published with each release.</li></ul>
+<p><a href="https://github.com/paylock786-art/vionex-apk-security/blob/main/SECURITY.md">Security & verification guide</a> · <a href="https://github.com/paylock786-art/vionex-crm-releases/releases">All releases</a></p>
+<footer>Vionex Technologies · Official app distribution page</footer>
+</main><script>
+fetch('https://api.github.com/repos/paylock786-art/vionex-crm-releases/releases/latest')
+.then(r=>{if(!r.ok)throw new Error('Release API unavailable');return r.json()})
+.then(d=>{document.getElementById('version').textContent=d.name||d.tag_name||'Latest release';document.getElementById('releaseNotes').textContent=(d.body||'Official release published.').slice(0,500);const a=(d.assets||[]).find(x=>/Vionex-CRM\.apk$/i.test(x.name))||(d.assets||[]).find(x=>/\.apk$/i.test(x.name));if(a){const b=document.getElementById('download');b.href=a.browser_download_url;b.textContent='Download APK · '+(a.size/1048576).toFixed(1)+' MB'}})
+.catch(()=>{document.getElementById('version').textContent='Latest official release';document.getElementById('releaseNotes').textContent='Use the official Releases page to download.'});
+</script></body></html>
