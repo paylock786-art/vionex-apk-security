@@ -1,0 +1,66 @@
+name: Vionex APK Security Audit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download latest official APK
+        id: apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/paylock786-art/vionex-crm-releases/releases/latest > release.json
+          URL=$(jq -r '[.assets[] | select(.name|test("\\.apk$";"i"))][0].browser_download_url // empty' release.json)
+          NAME=$(jq -r '[.assets[] | select(.name|test("\\.apk$";"i"))][0].name // "Vionex-CRM.apk"' release.json)
+          TAG=$(jq -r '.tag_name' release.json)
+          test -n "$URL"
+          curl -fL "$URL" -o "$NAME"
+          echo "file=$NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "sha=$(sha256sum "$NAME" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Submit APK to VirusTotal
+        id: vt
+        env:
+          VT_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$VT_API_KEY" || { echo "::error::Missing VIRUSTOTAL_API_KEY repository secret"; exit 1; }
+          RESP=$(curl -fsS --request POST --url https://www.virustotal.com/api/v3/files --header "x-apikey: $VT_API_KEY" --form file=@"${{ steps.apk.outputs.file }}")
+          ID=$(echo "$RESP" | jq -r '.data.id')
+          echo "analysis_id=$ID" >> "$GITHUB_OUTPUT"
+      - name: Wait for VirusTotal analysis
+        env:
+          VT_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          ANALYSIS_ID: ${{ steps.vt.outputs.analysis_id }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            R=$(curl -fsS "https://www.virustotal.com/api/v3/analyses/$ANALYSIS_ID" -H "x-apikey: $VT_API_KEY")
+            STATUS=$(echo "$R" | jq -r '.data.attributes.status')
+            if [ "$STATUS" = "completed" ]; then echo "$R" > vt-analysis.json; exit 0; fi
+            sleep 10
+          done
+          echo "::error::VirusTotal analysis timed out"; exit 1
+      - name: Publish audit summary
+        env:
+          TAG: ${{ steps.apk.outputs.tag }}
+          SHA: ${{ steps.apk.outputs.sha }}
+        run: |
+          set -euo pipefail
+          jq -n --arg release "$TAG" --arg sha256 "$SHA" --arg checked "$(date -u +%FT%TZ)" --slurpfile vt vt-analysis.json '{release:$release,sha256:$sha256,checked_at:$checked,virus_total:{status:$vt[0].data.attributes.status,stats:$vt[0].data.attributes.stats,analysis_url:("https://www.virustotal.com/gui/file/" + $sha256)}}' > security-report.json
+          echo "## Vionex APK Security Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Release: $TAG" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SHA-256: $SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- VT stats: $(jq -c '.virus_total.stats' security-report.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Report: https://www.virustotal.com/gui/file/$SHA" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vionex-security-report
+          path: security-report.json
+          retention-days: 90
