@@ -28,11 +28,22 @@ jobs:
         id: vt
         env:
           VT_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          APK_FILE: ${{ steps.apk.outputs.file }}
         run: |
           set -euo pipefail
           test -n "$VT_API_KEY" || { echo "::error::Missing VIRUSTOTAL_API_KEY repository secret"; exit 1; }
-          RESP=$(curl -fsS --request POST --url https://www.virustotal.com/api/v3/files --header "x-apikey: $VT_API_KEY" --form file=@"${{ steps.apk.outputs.file }}")
+          SIZE=$(stat -c%s "$APK_FILE")
+          echo "APK size: $SIZE bytes"
+          if [ "$SIZE" -gt 33554432 ]; then
+            echo "Requesting VirusTotal large-file upload URL..."
+            UPLOAD_URL=$(curl -fsS --get "https://www.virustotal.com/api/v3/files/upload_url" -H "x-apikey: $VT_API_KEY" | jq -r '.data')
+            test -n "$UPLOAD_URL" && test "$UPLOAD_URL" != "null"
+            RESP=$(curl -fsS --request POST --url "$UPLOAD_URL" --header "x-apikey: $VT_API_KEY" --form "file=@$APK_FILE")
+          else
+            RESP=$(curl -fsS --request POST --url "https://www.virustotal.com/api/v3/files" --header "x-apikey: $VT_API_KEY" --form "file=@$APK_FILE")
+          fi
           ID=$(echo "$RESP" | jq -r '.data.id')
+          test -n "$ID" && test "$ID" != "null"
           echo "analysis_id=$ID" >> "$GITHUB_OUTPUT"
       - name: Wait for VirusTotal analysis
         env:
